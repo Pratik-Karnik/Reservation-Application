@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+{% autoescape true %}
+<html>
+  <head>
+    <link type="text/css" rel="stylesheet" href="/stylesheets/reservationApp.css" />
+    <link type="text/css" rel="stylesheet" href="/stylesheets/bootstrap.min.css" />
+  </head>
+  <body>
+    <div class = "container">
+      <h3>Reservation Application</h3>
+
+      <div class="user-heading">
+        Welcome
+        {% if user %}
+        {{user.nickname()}}
+        {% endif %}
+      </div>
+      <br>
+      <hr>
+      <ul class="nav nav-pills">
+        {% if ownerView == False %}
+          <li><a href="?pageToDisplay=yourReservations&ownerView={{ownerView}}&resourceOwner={{resourceOwner}}" class=
+            {% if pageToDisplay == "yourReservations" %}
+              navbuttons
+            {% endif %}
+          >Your reservations</a>
+          </li>
+        {% endif %}
+
+        {% if ownerView == True %}
+          <li><a href="?pageToDisplay=yourReservations&ownerView={{ownerView}}&resourceOwner={{resourceOwner}}" class=
+            {% if pageToDisplay == "yourReservations" %}
+              navbuttons
+            {% endif %}
+          >Reservations of {{resourceOwner}}</a>
+          </li>
+        {% endif %}
+
+        {% if ownerView == False %}
+          <li><a href="?pageToDisplay=allResources"  class=
+            {% if pageToDisplay == "allResources" %}
+              navbuttons
+            {% endif %}>All resources</a>
+          </li>
+        {% endif %}
+
+        {% if ownerView == False %}
+          <li><a href="?pageToDisplay=yourResources&ownerView={{ownerView}}&resourceOwner={{resourceOwner}}" class=
+            {% if pageToDisplay == "yourResources" %}
+              navbuttons
+            {% endif %}>Resources owned by you</a></li>
+        {% endif %}
+
+        {% if ownerView == True %}
+          <li><a href="?pageToDisplay=yourResources&ownerView={{ownerView}}&resourceOwner={{resourceOwner}}" class=
+            {% if pageToDisplay == "yourResources" %}
+              navbuttons
+            {% endif %}>Resources of {{resourceOwner}}</a></li>
+        {% endif %}
+
+
+        {% if ownerView == False %}
+          <li><a href="?pageToDisplay=createResource" class=
+            {% if pageToDisplay == "createResource" %}
+              navbuttons
+            {% endif %}>Create a resource</a></li>
+        {% endif %}
+
+        <li><a href="/">Home</a></li>
+        <li><a href="{{ url|safe }}">{{url_linktext}}</a></li>
+      </ul>
+
+      <hr>
+
+      {% if pageToDisplay == 'yourReservations' %}
+        <div class="resourceTable">
+          <div class="headrow">
+            <div class="resourceCell">Resource Name</div>
+            <div class="resourceCell">Resource Start Time</div>
+            <div class="resourceCell">Resource Duration</div>
+            <div class="resourceCell">Resource Tags</div>
+            <div class="resourceCell">Delete Reservation</div>
+          </div>
+
+          {% for reservation in reservations %}
+            {% if ownerView == False %}
+              {% if user and user.user_id() == reservation.reservationAuthor.identity %}
+                <div class="resourceRow">
+                  <form method="get" action="/reserveResource" id="{{reservation.resourceName}}form">
+                    <div class="resourceCell">
+                      <input type="hidden" name="resourceId" value={{reservation.reservedResourceId}}>
+                      <a href="#" onclick="document.getElementById('{{reservation.resourceName}}form').submit()">{{ reservation.reservedResourceName }}</a>
+                    </div>
+                  </form>
+                  <div class="resourceCell">{{ reservation.reservationStartTime }}</div>
+                  <div class="resourceCell">{{ reservation.reservationDuration }}</div>
+                  {% for resource in resources%}
+                    {% if reservation.reservedResourceName == resource.resourceName %}
+                      <div class="resourceCell">
+                        {% for tag in resource.resourceTags %}
+                            <form id="{{tag}}form" action="/resourceTags" method="get" class="tag-header">
+                              <input type="hidden" name="resourceTag" value="{{tag}}">
+                                <a href="#" onclick="document.getElementById('{{tag}}form').submit()">{{tag}}</a>
+                            </form>
+                        {% endfor %}
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                  <form method="get" action="/">
+                    <div class="resourceCell">
+                      <input type="hidden" name="deleteReservation" value="{{reservation.reservationId}}">
+                      <input type="submit" value ="Delete" class="submit-button"></input>
+                    </div>
+                  </form>
+                </div>
+              {% endif %}
+            {% endif %}
+
+            {% if ownerView == True %}
+              {% if resourceOwner == reservation.reservationAuthor.email %}
+                <div class="resourceRow">
+                  <form method="get" action="/reserveResource" id="{{reservation.resourceName}}form">
+                    <div class="resourceCell">
+                      <input type="hidden" name="resourceId" value={{reservation.reservedResourceId}}>
+                      <a href="#" onclick="document.getElementById('{{reservation.resourceName}}form').submit()">{{ reservation.reservedResourceName }}</a>
+                    </div>
+                  </form>
+                  <div class="resourceCell">{{ reservation.reservationStartTime }}</div>
+                  <div class="resourceCell">{{ reservation.reservationDuration }}</div>
+                  {% for resource in resources%}
+                    {% if reservation.reservedResourceName == resource.resourceName %}
+                      <div class="resourceCell">
+                        {% for tag in resource.resourceTags %}
+                            <form id="{{tag}}form" action="/resourceTags" method="get" class="tag-header">
+                              <input type="hidden" name="resourceTag" value="{{tag}}">
+                                <a href="#" onclick="document.getElementById('{{tag}}form').submit()">{{tag}}</a>
+                            </form>
+                        {% endfor %}
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+
+                  {% if resourceOwner == user.email() %}
+                    <form method="get" action="/">
+                      <div class="resourceCell">
+                        <input type="hidden" name="deleteReservation" value="{{reservation.reservationId}}">
+                        <input type="submit" value ="Delete" class="submit-button"></input>
+                      </div>
+                    </form>
+                  {% endif %}
+
+                  {% if resourceOwner != user.email() %}
+                    <form method="get" action="/">
+                        <div class="resourceCell">
+                          Not Authorized to Delete
+                        </div>
+                    </form>
+                  {% endif %}
+                </div>
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% if pageToDisplay == 'yourResources' %}
+        <div class="resourceTable">
+          <div class="headrow">
+            <div class="resourceCell">Resource Name</div>
+            <div class="resourceCell">Resource Start Time</div>
+            <div class="resourceCell">Resource End Time</div>
+            <div class="resourceCell">Resource Tags</div>
+            <div class="resourceCell">Number of Reservations</div>
+          </div>
+
+          {% for resource in resources %}
+
+            {% if ownerView == False %}
+              {% if user and user.user_id() == resource.resourceAuthor.identity %}
+                <div class="resourceRow">
+                  <form method="get" action="/reserveResource" id="{{resource.resourceName}}form">
+                    <div class="resourceCell">
+                      <input type="hidden" name="resourceId" value={{resource.resourceId}}>
+                      <a href="#" onclick="document.getElementById('{{resource.resourceName}}form').submit()">{{ resource.resourceName }}</a>
+                    </div>
+                  </form>
+                  <div class="resourceCell">{{ resource.resourceStartTime }}</div>
+                  <div class="resourceCell">{{ resource.resourceEndTime }}</div>
+                  <div class="resourceCell">
+                    {% for tag in resource.resourceTags %}
+                      <form id="{{tag}}form" action="/resourceTags" method="get" class="tag-header">
+                          <input type="hidden" name="resourceTag" value="{{tag}}">
+                          <a href="#" onclick="document.getElementById('{{tag}}form').submit()">{{tag}}</a>
+                      </form>
+                    {% endfor %}
+                  </div>
+                  <div class="resourceCell">{{ resource.numberOfReservations }}</div>
+                </div>
+              {% endif %}
+            {% endif %}
+
+            {% if ownerView == True %}
+              {% if resourceOwner == resource.resourceAuthor.email %}
+                <div class="resourceRow">
+                  <form method="get" action="/reserveResource" id="{{resource.resourceName}}form">
+                    <div class="resourceCell">
+                      <input type="hidden" name="resourceId" value={{resource.resourceId}}>
+                      <a href="#" onclick="document.getElementById('{{resource.resourceName}}form').submit()">{{ resource.resourceName }}</a>
+                    </div>
+                  </form>
+                  <div class="resourceCell">{{ resource.resourceStartTime }}</div>
+                  <div class="resourceCell">{{ resource.resourceEndTime }}</div>
+                  <div class="resourceCell">
+                    {% for tag in resource.resourceTags %}
+                      <form id="{{tag}}form" action="/resourceTags" method="get" class="tag-header">
+                          <input type="hidden" name="resourceTag" value="{{tag}}">
+                          <a href="#" onclick="document.getElementById('{{tag}}form').submit()">{{tag}}</a>
+                      </form>
+                    {% endfor %}
+                  </div>
+                  <div class="resourceCell">{{ resource.numberOfReservations }}</div>
+                </div>
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% if pageToDisplay == 'allResources' %}
+        <div class="resourceTable">
+          <div class="headrow">
+            <div class="resourceCell">Resource Name</div>
+            <div class="resourceCell">Resource Owner</div>
+            <div class="resourceCell">Resource Start Time</div>
+            <div class="resourceCell">Resource End Time</div>
+            <div class="resourceCell">Resource Tags</div>
+            <div class="resourceCell">Number of Reservations</div>
+          </div>
+
+          {% for resource in resources %}
+            <div class="resourceRow">
+
+              <form method="get" action="/reserveResource" id="{{resource.resourceName}}form">
+                <div class="resourceCell">
+                  <input type="hidden" name="resourceId" value={{resource.resourceId}}>
+                  <a href="#" onclick="document.getElementById('{{resource.resourceName}}form').submit()">{{ resource.resourceName }}</a>
+                </div>
+              </form>
+
+              <div class="resourceCell">
+                <a href="/?resourceOwner={{resource.resourceAuthor.email}}">{{ resource.resourceAuthor.email }}</a>
+              </div>
+              <div class="resourceCell">{{ resource.resourceStartTime }}</div>
+              <div class="resourceCell">{{ resource.resourceEndTime }}</div>
+              <div class="resourceCell">
+                {% for tag in resource.resourceTags %}
+                  <form id="{{tag}}form" action="/resourceTags" method="get" class="tag-header">
+                    <input type="hidden" name="resourceTag" value="{{tag}}">
+                    <a href="#" onclick="document.getElementById('{{tag}}form').submit()">{{tag}}</a>
+                  </form>
+                {% endfor %}
+              </div>
+              <div class="resourceCell">{{ resource.numberOfReservations }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% if pageToDisplay == 'createResource' %}
+        <div>
+          <h4>Create a new Resource</h4>
+          <form action="/create" method="post" id="createReservationForm">
+            <div> Resource Name:
+              <input id="resourceName" value="{{ resourceName }}" name="resourceName" required></input>
+            </div>
+            <br>
+            <div> Select Date (MM-DD-YYYY):
+              <input id="resourceDate" name="resourceDate" type="date"></input>
+            </div>
+            <br>
+            <div> Select Start Time:
+              <input id="resourceStartTime" name="resourceStartTime" type="time"></input>
+            </div>
+            <br>
+            <div> Select End Time:
+              <input id="resourceEndTime" name="resourceEndTime" type="time"></input>
+            </div>
+            <br>
+            <div> Set Resource Tags (Separate by ',') :
+              <input id="resourceTags" name="resourceTags"></input>
+            </div>
+            <br>
+            <input type="submit" value="Submit" class="submit-button">
+          </form>
+        </div>
+
+      {% endif %}   
+
+
+    </div>
+  </body>
+</html>
+{% endautoescape %}

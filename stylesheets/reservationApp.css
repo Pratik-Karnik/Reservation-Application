@@ -1,0 +1,74 @@
+body {
+  font-family: Verdana, Helvetica, sans-serif;
+}
+
+.resourceTable
+    {
+        display:  table;
+        width:auto;
+        background-color:#000000;
+        border:1px solid #000000;
+        border-spacing:5px;
+    }
+
+    .resourceRow
+    {
+       display:table-row;
+       width:auto;
+    }
+
+    .resourceCell
+    {
+        float:left;
+        display:table-column;
+        width:160px;
+        background-color:white;
+		border: 1px solid #000000;
+		height: 40px;
+		text-align:center;
+			color: #000000
+
+    }
+	.headRow {
+		margin-bottom:5%;
+	}
+
+.second-heading {
+    margin-top: 2%;
+    margin-bottom: 2%;
+
+}
+
+.navbuttons {
+    background-color:#000000;
+    color: #fff;
+    border-radius: 4px;
+}
+
+.submit-button {
+    width:80px;
+    border-radius: 4px;
+    background-color: #000000;
+    border-color: #ffffff;
+    text-align:center;
+    color: #fff;
+}
+
+.user-heading {
+	float: left;
+    margin-right: 15%;
+}	
+.tag-header {
+	float: left;
+    margin-left: 10%;
+}
+.tag-style {
+	float:left;
+}
+.rss-style {
+	float:left;
+	margin-right:8%;
+}
+.rss-substyle {
+	float:left;
+}

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+{% autoescape true %}
+<html>
+	<head>
+		<link type="text/css" rel="stylesheet" href="/stylesheets/reservationApp.css" />
+    	<link type="text/css" rel="stylesheet" href="/stylesheets/bootstrap.min.css" />
+	</head>
+	<body>
+		<div class = "container">
+	    	<h3>Reservation Application</h3>
+	      	<div class="user-heading">
+		      Welcome
+		      {% if user %}
+		      {{user.nickname()}}
+		      {% endif %}
+		    </div>
+		    <br>
+		    <hr>
+		    <ul class="nav nav-pills">
+		    	<li><a href="?pageToDisplay=showReservations&&resourceId={{resource.resourceId}}" class=
+		          {% if pageToDisplay == "showReservations" %}
+		            navbuttons
+		          {% endif %}
+		        >Show Current and Upcoming Reservations</a>
+		        </li>
+		        <li><a href="?pageToDisplay=addReservation&&resourceId={{resource.resourceId}}"  class=
+		          {% if pageToDisplay == "addReservation" %}
+		            navbuttons
+		          {% endif %}>Add a new reservation</a>
+		        </li>
+		        {% if user and user.user_id() == resource.resourceAuthor.identity %}
+			        <li><a href="?pageToDisplay=editResource&&resourceId={{resource.resourceId}}" class=
+			          {% if pageToDisplay == "editResource" %}
+			            navbuttons
+			          {% endif %}>Edit the Resource</a></li>
+		        {% endif %}
+		        <li><a href="/">Home</a></li>
+		        <li><a href="{{ url|safe }}">{{url_linktext}}</a></li>
+		    </ul>
+		    <hr>
+
+		    {% if pageToDisplay == 'showReservations' %}
+		    	<div class="resourceTable">
+		    		<div class="headrow">
+			            <div class="resourceCell">Reservation Owner</div>
+			            <div class="resourceCell">Reservation Start Time</div>
+			            <div class="resourceCell">Reservation Duration</div>
+			            <div class="resourceCell">Delete Reservation</div>
+          			</div>
+
+          			{% for reservation in reservations %}
+          				{% if reservation.reservedResourceId == resource.resourceId %}
+          					<div class="resourceCell">{{ reservation.reservationAuthor.email }}</div>
+          					<div class="resourceCell">{{ reservation.reservationStartTime }}</div>
+          					<div class="resourceCell">{{ reservation.reservationDuration }}</div>
+
+          					{% if reservation.reservationAuthor.identity == user.user_id() %}
+          						<form method="get" action="/">
+          							<div class="resourceCell">
+          								<input type="hidden" name="deleteReservation" value="{{reservation.reservationId}}">
+          								<input type="submit" value ="Delete" class="submit-button"></input>
+          							</div>
+          						</form>
+          					{% endif %}
+          					{% if reservation.reservationAuthor.identity != user.user_id() %}
+          						<form method="get" action="/">
+          							<div class="resourceCell">
+          								Not Authorized to Delete
+          							</div>
+          						</form>
+          					{% endif %}
+          				{% endif %}
+          			{% endfor %}
+		    	</div>
+		    {% endif %}
+
+		    {% if pageToDisplay == 'addReservation' %}
+		    	<div>
+		    		<h4>You are about to reserve the following resource</h4><br>
+		    		<div>Resource Name: {{resource.resourceName}}</div><br>
+		    		<div>Resource Start Time: {{resource.resourceStartTime}}</div><br>
+		    		<div>Resource End Time: {{resource.resourceEndTime}}</div><br>
+		    		<div>Resource is available from: {{resourceStartDate}}</div><br>
+		    		<form method="post" action="/addReservation" id="addReservationForm">
+		    			<input type="hidden" name="resourceDate" value="{{resourceStartDate}}"></input>
+		    			<input type="hidden" name="resourceId" value="{{resource.resourceId}}"></input>
+		    			<input type="hidden" name="resourceName" value="{{resource.resourceName}}"></input>
+		    			<div> Select Start Time:
+              				<input id="reservationStartTime" name="reservationStartTime" type="time"></input>
+           	 			</div>
+           	 			<br>
+           	 			<div> Select Duration :
+              				<select id="endTimeHr" name="endTimeHr"> 
+								{% for num in range(0,13) %}
+								  <option value="{{ num }}">{{num}}</option>					
+								{% endfor %}
+							</select>
+							Hour(s)
+							<select id="endTimeMin" name="endTimeMin">
+								{% for num in range(0,60) %}
+								  <option value="{{ num }}">{{num}}</option>					
+								{% endfor %}
+							</select>
+							Minute(s)
+           	 			</div>
+           	 			<br>
+           	 			<input type="submit" value ="Reserve" class="submit-button"></input>
+		    		</form>
+		    	</div>
+		    {% endif %}
+
+		    {% if pageToDisplay == 'editResource' %}
+		    	<div>
+		    		<h4> Edit the resource</h4>
+		    		 <form action="/create" method="post" id="editResourceForm">
+		    			<input type="hidden" name="resourceId" value="{{resource.resourceId}}"></input>
+		    			<div> Resource Name :
+		    				<input name="resourceName" value="{{resource.resourceName}}" required></input>
+		    			</div>
+		    			<br>
+		    			<div> Select Date (MM-DD-YYYY):
+			              	<select name="Month" id="Month">
+			              		{% for i in range(1,13) %}
+			              			<option value="{{i}}">{{i}}</option>
+			              		{% endfor %}
+			              	</select>
+			              	<select name="Day" id="Day">
+			              		{% for i in range(1,31) %}
+			              			<option value="{{i}}">{{i}}</option>
+			              		{% endfor %}
+			              	</select>
+			              	<select name="Year" id="Year">
+			              		{% for i in range(2017,2117) %}
+			              			<option value="{{i}}">{{i}}</option>
+			              		{% endfor %}
+			              	</select>
+			            </div>
+			            <br>
+			            <div> Select Start Time (HH-MM):
+			            	<select name="StartHours" id="StartHours">
+			              		{% for i in range(1,13) %}
+			              			<option value="{{i}}">{{i}}</option>
+			              		{% endfor %}
+			              	</select>
+			              	<select name="StartMinutes" id="StartMinutes">
+			              		{% for i in range(0,61) %}
+			              			<option value="{{i}}">{{i}}</option>
+			              		{% endfor %}
+			              	</select>
+			              	<select name="startMeridian" id="startMeridian">
+							  <option value="AM">AM</option>					
+							  <option value="PM">PM</option>					
+							</select>	
+			            </div>
+			            <br>
+			            <div> Select End Time (HH-MM):
+			            	<select name="EndHours" id="EndHours">
+			              		{% for i in range(1,13) %}
+			              			<option value="{{i}}">{{i}}</option>
+			              		{% endfor %}
+			              	</select>
+			              	<select name="EndMinutes" id="EndMinutes">
+			              		{% for i in range(0,61) %}
+			              			<option value="{{i}}">{{i}}</option>
+			              		{% endfor %}
+			              	</select>
+			              	<select name="endMeridian" id="endMeridian">
+							  <option value="AM">AM</option>					
+							  <option value="PM">PM</option>					
+							</select>	
+			            </div>
+			            <br>
+			            <div> Set Resource Tags (Separate by ',') :
+			              	<input id="resourceTags" name="resourceTags"></input>
+			            </div>
+			            <br>
+			            <script type="text/javascript">
+			            	var startDate = "{{resource.resourceStartTime}}";
+			            	displayDate = startDate.split(" ")[0]
+			            	displayDateYear = displayDate.split("-")[0]
+			            	displayDateMonth = displayDate.split("-")[1]
+			            	displayDateDate = displayDate.split("-")[2]
+			            	document.getElementById("Day").value = parseInt(displayDateDate);
+			            	document.getElementById("Month").value = parseInt(displayDateMonth);
+			            	document.getElementById("Year").value = parseInt(displayDateYear);
+
+			            	startTime = startDate.split(" ")[1]
+			            	startTimeHours = startTime.split(":")[0]
+			            	startTimeMinutes = startTime.split(":")[1]
+
+			            	if(startTimeHours > 12) {
+			            		startTimeHours = startTimeHours - 12
+			            		startMeridian = 'PM'
+			            	}
+			            	else {
+			            		startMeridian = 'PM'
+			            	}
+
+			            	document.getElementById("startMeridian").value = startMeridian;
+			            	document.getElementById("StartMinutes").value = parseInt(startTimeMinutes);
+			            	document.getElementById("StartHours").value = parseInt(startTimeHours);
+
+			            	var endDate = "{{resource.resourceEndTime}}";
+
+			            	endTime = endDate.split(" ")[1]
+			            	endTimeHours = endTime.split(":")[0]
+			            	endTimeMinutes = endTime.split(":")[1]
+
+			            	if(endTimeHours > 12) {
+			            		endTimeHours = endTimeHours - 12
+			            		endMeridian = 'PM'
+			            	}
+			            	else {
+			            		endMeridian = 'PM'
+			            	}
+
+			            	document.getElementById("endMeridian").value = endMeridian;
+			            	document.getElementById("EndMinutes").value = parseInt(endTimeMinutes);
+			            	document.getElementById("EndHours").value = parseInt(endTimeHours);
+
+			            	var tags = ""
+			            	{% for tag in resource.resourceTags %}
+			            		tags = tags + "{{tag}}" + "," 
+			            	{% endfor %}
+
+			            	document.getElementById("resourceTags").value = tags.substring(0,(tags.length)-1);
+
+			            </script>
+			            <input type="submit" value="Submit" class="submit-button">
+		    		</form>
+		    	</div>
+		    {% endif %}
+		</div>
+	</body>
+</html>
+{% endautoescape %}
