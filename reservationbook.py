@@ -27,13 +27,6 @@ def makePrettyXML(xmlElement):
     parsedXML = minidom.parseString(rawXML)
     return parsedXML.toprettyxml(indent="  ", encoding="UTF-8")
 
-def send_approved_mail(sender_address,user):
-    mail.send_mail(sender=sender_address,
-                   to="<"+user.nickname()+">",
-                   subject="Reservation Done",
-                   body=""" You have successfully made a reservation
-""")
-
 class Author(ndb.Model):
     identity = ndb.StringProperty(indexed=False)
     email = ndb.StringProperty(indexed=False)
@@ -261,9 +254,6 @@ class AddReservation(webapp2.RequestHandler):
 
             newReservation.put()
             sleep(3)
-
-            send_approved_mail('{}@appspot.gserviceaccount.com'.format(
-            app_identity.get_application_id()),user)
 
             pageToDisplay = "yourReservations"
             query_params = {'pageToDisplay':pageToDisplay}
