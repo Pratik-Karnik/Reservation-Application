@@ -79,7 +79,7 @@
 			    var resourceAvailableDate = "{{resourceStartDate}}"
 			    var resourceAvailableDateSplitted = resourceAvailableDate.split("/")
 
-			    var reservationStartDate = resourceAvailableDateSplitted[2]+"-"+resourceAvailableDateSplitted[1]+"-"+resourceAvailableDateSplitted[0]
+			    var reservationStartDate = resourceAvailableDateSplitted[2]+"-"+resourceAvailableDateSplitted[0]+"-"+resourceAvailableDateSplitted[1]
 
 			    var reservationTime = reservationStartDate+" "+startTimeHours+":"+startTimeMinutes+":00"
 			    var reservationStartTime = new Date(reservationTime)
