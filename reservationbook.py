@@ -22,11 +22,6 @@ JINJA_ENVIRONMENT = jinja2.Environment(
     extensions=['jinja2.ext.autoescape'],
     autoescape=True)
 
-def makePrettyXML(xmlElement):
-    rawXML = ElementTree.tostring(xmlElement, 'utf-8')
-    parsedXML = minidom.parseString(rawXML)
-    return parsedXML.toprettyxml(indent="  ", encoding="UTF-8")
-
 class Author(ndb.Model):
     identity = ndb.StringProperty(indexed=False)
     email = ndb.StringProperty(indexed=False)
@@ -263,92 +258,6 @@ class AddReservation(webapp2.RequestHandler):
             query_params = {'pageToDisplay':pageToDisplay,'validReservation':validReservation,'resourceId':resourceId}
             self.redirect('/reserveResource?' + urllib.urlencode(query_params))
 
-class seeResourceRSS(webapp2.RequestHandler):
-    def get(self):
-
-        resourceId = self.request.get('resourceId')
-        reservationQuery = Reservation.query(Reservation.reservedResourceId == resourceId)
-        reservations = reservationQuery.fetch()
-        reservationNumber = 1
-
-        user = users.get_current_user()
-        resourceQuery = Resource.query(Resource.resourceId == resourceId)
-        resources = resourceQuery.fetch()
-        resource = resources[0]
-
-        resourceUrl = self.request.url
-        splitResourceUrl = resourceUrl.split("/")
-        reserveResourceLink = ""
-
-        for i in range(0,len(splitResourceUrl)):
-            if i != (len(splitResourceUrl) - 1):
-                reserveResourceLink += splitResourceUrl[i]+"/"
-
-        reserveResourceLink = reserveResourceLink+"/reserveResource?resourceId="+resourceId
-
-        root = Element('rss')
-        root.set('version','2.0')
-
-        channel = SubElement(root, 'channel')
-        title = SubElement(channel, 'title')
-        title.text = resource.resourceName
-        description = SubElement(channel, 'description')
-        description.text = "Owner of this resource is "+ resource.resourceAuthor.email
-        link = SubElement(channel, 'link')
-        link.text = reserveResourceLink
-
-        resourcePubDateTuple = resource.resourcePubDate.timetuple()
-
-        resourcePubDate = time.mktime(resourcePubDateTuple)
-        pubDate = SubElement(channel, 'pubDate')
-        pubDate.text = utils.formatdate(resourcePubDate)
-
-        lastBuildDate = SubElement(channel, 'lastBuildDate')
-
-        if resource.resourceDate is not None:
-            resourceModifiedDateTuple = resource.resourcePubDate.timetuple()
-            resourceModifiedDate = time.mktime(resourceModifiedDateTuple)
-            lastBuildDate.text = utils.formatdate(resourceModifiedDate)
-        else:
-            lastBuildDate.text = utils.formatdate(resourcePubDate)
-
-
-        for reservation in reservations:
-            reservationPubDateTuple = reservation.reservationPubDate.timetuple()
-            reservationPubDate = time.mktime(reservationPubDateTuple)
-
-            item = SubElement(channel, 'item')
-            title = SubElement(item, 'title')
-            title.text = "Reservation #"+str(reservationNumber)
-            description = SubElement(item, 'description')
-            description.text = reservation.reservationAuthor.email+" has made this reservation for duration: "+str(reservation.reservationDuration)+" starting from time: "+str(reservation.reservationStartTime)
-            link = SubElement(item, 'link')
-            link.text = reserveResourceLink
-            guid = SubElement(item, 'guid')
-            guid.set('isPermaLink','false')
-            guid.text = reservation.reservationId
-            pubDate = SubElement(item, 'pubDate')
-            pubDate.text = utils.formatdate(reservationPubDate)
-            reservationNumber+=1
-
-        rssXML = makePrettyXML(root)
-
-
-        if user:
-            url=users.create_logout_url(self.request.uri)
-            url_linktext='Logout'
-            
-            template_values = {
-                'reservations':reservations,
-                'user':user,
-                'rssXML':rssXML,
-            }
-            template = JINJA_ENVIRONMENT.get_template('resourceRSS.html')
-            self.response.write(template.render(template_values))
-
-        else:
-            self.redirect(users.create_login_url(self.request.uri))
-
 class searchResource(webapp2.RequestHandler):
     def get(self):
         resourceName = self.request.get('searchName')
@@ -532,7 +441,6 @@ app = webapp2.WSGIApplication([
     ('/reserveResource', ReserveResource),
     ('/addReservation', AddReservation),
     ('/resourceTags', showTaggedResources),
-    ('/seeRSS', seeResourceRSS),
     ('/searchResource', searchResource),
     ('/searchResourceByTime', searchResourceByTime)
 ], debug=True)

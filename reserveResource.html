@@ -162,13 +162,6 @@
 	        </div>
             <br>
             <br>
-            <div class="resource-tags"> Resource RSS: </div>
-            	<div>
-		            <form method="get" action="/seeRSS" id="{{resource.resourceId}}RSSform" class="resource-tag-header">
-	                  <input type="hidden" name="resourceId" value={{resource.resourceId}}>
-	                  <a href="#" onclick="document.getElementById('{{resource.resourceId}}RSSform').submit()">RSS</a>
-					</form>
-				</div>
             <hr>
 
 		    {% if pageToDisplay == 'showReservations' %}
