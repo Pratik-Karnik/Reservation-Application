@@ -29,6 +29,7 @@
 		            <div class="resourceCell">Resource End Time</div>
 		            <div class="resourceCell">Resource Tags</div>
 		            <div class="resourceCell">Number of Reservations</div>
+		            <div class="resourceCell">RSS Link</div>
 	          	</div>
 
 	          	{% for resource in resources %}
@@ -54,6 +55,12 @@
 			                {% endfor %}
 			            </div>
 			            <div class="resourceCell">{{ resource.numberOfReservations }}</div>
+			            <form method="get" action="/seeRSS" id="{{resource.resourceId}}RSSform">
+			                <div class="resourceCell">
+			                  <input type="hidden" name="resourceId" value={{resource.resourceId}}>
+			                  <a href="#" onclick="document.getElementById('{{resource.resourceId}}RSSform').submit()">RSS</a>
+			                </div>
+			            </form>
 			        </div>
 			    {% endfor %}
 		    </div>

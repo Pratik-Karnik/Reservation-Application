@@ -5,6 +5,71 @@
     <link type="text/css" rel="stylesheet" href="/stylesheets/reservationApp.css" />
     <link type="text/css" rel="stylesheet" href="/stylesheets/bootstrap.min.css" />
   </head>
+  <script type="text/javascript">
+    function isValidResource() {
+      var currentDate = new Date();
+      var resourceDate = document.getElementById("resourceDate").value
+      var startTime = document.getElementById("resourceStartTime").value
+      var endTime = document.getElementById("resourceEndTime").value
+
+      var startTimeArray = startTime.split(':')
+      var startTimeHours = parseInt(startTimeArray[0])
+      var startTimeMinutes = parseInt(startTimeArray[1])
+
+      var startTimeMeridian = ""
+      var endTimeMeridian = ""
+
+      if(startTimeHours == 0) {
+        startTimeHours = 12
+      }
+          
+      if(startTimeHours > 12) {
+        startTimeHours = startTimeHours-12
+        startTimeMeridian = 'PM'
+      }
+      else {
+        startTimeMeridian = 'AM'
+      }
+          
+      var endTimeArray = endTime.split(':')
+      var endTimeHours = parseInt(endTimeArray[0])
+      var endTimeMinutes = parseInt(endTimeArray[1])
+
+      if(endTimeHours == 0) {
+        endTimeHours = 12
+      }
+         
+      if(endTimeHours > 12) {
+        endTimeHours = endTimeHours-12
+        endTimeMeridian = 'PM'
+      }
+      else {
+        endTimeMeridian = 'AM'
+      }
+
+      var startTime = resourceDate+' '+(startTimeHours.toString())+':'+(startTimeMinutes.toString())+' '+startTimeMeridian
+      var resourceStartTime = new Date(startTime)
+
+      var endTime = resourceDate+' '+(endTimeHours.toString())+':'+(endTimeMinutes.toString())+' '+endTimeMeridian
+      var resourceEndTime = new Date(endTime)
+
+      if(resourceStartTime < currentDate) {
+        var error = "Resource Start Date cannot be prior to Current Date"
+        document.getElementById("createResourceError").innerHTML = error
+        return false
+      }
+      else {
+        if(resourceEndTime < resourceStartTime) {
+          var error = "Resource End Time should be after Resource Start Time"
+          document.getElementById("createResourceError").innerHTML = error
+          return false
+        }
+        else {
+          return true
+        }
+      }
+    }
+  </script>
   <body>
     <div class = "container">
       <h3>Reservation Application</h3>
@@ -18,7 +83,7 @@
       <br>
       <hr>
       <ul class="nav nav-pills">
-        {% if ownerView == False %}
+        {% if ownerView == '0' %}
           <li><a href="?pageToDisplay=yourReservations&ownerView={{ownerView}}&resourceOwner={{resourceOwner}}" class=
             {% if pageToDisplay == "yourReservations" %}
               navbuttons
@@ -27,7 +92,7 @@
           </li>
         {% endif %}
 
-        {% if ownerView == True %}
+        {% if ownerView == '1' %}
           <li><a href="?pageToDisplay=yourReservations&ownerView={{ownerView}}&resourceOwner={{resourceOwner}}" class=
             {% if pageToDisplay == "yourReservations" %}
               navbuttons
@@ -36,7 +101,7 @@
           </li>
         {% endif %}
 
-        {% if ownerView == False %}
+        {% if ownerView == '0' %}
           <li><a href="?pageToDisplay=allResources"  class=
             {% if pageToDisplay == "allResources" %}
               navbuttons
@@ -44,14 +109,14 @@
           </li>
         {% endif %}
 
-        {% if ownerView == False %}
+        {% if ownerView == '0' %}
           <li><a href="?pageToDisplay=yourResources&ownerView={{ownerView}}&resourceOwner={{resourceOwner}}" class=
             {% if pageToDisplay == "yourResources" %}
               navbuttons
             {% endif %}>Resources owned by you</a></li>
         {% endif %}
 
-        {% if ownerView == True %}
+        {% if ownerView == '1' %}
           <li><a href="?pageToDisplay=yourResources&ownerView={{ownerView}}&resourceOwner={{resourceOwner}}" class=
             {% if pageToDisplay == "yourResources" %}
               navbuttons
@@ -59,7 +124,7 @@
         {% endif %}
 
 
-        {% if ownerView == False %}
+        {% if ownerView == '0' %}
           <li><a href="?pageToDisplay=createResource" class=
             {% if pageToDisplay == "createResource" %}
               navbuttons
@@ -72,24 +137,54 @@
 
       <hr>
 
+      <div>
+        <form method="get" action="/searchResource" id="searchNameForm">
+          Search Resources by their name:
+          <input type="text" name="searchName"></input>
+          <input type="submit" value="Search" onclick="document.getElementById('searchNameForm').submit()""></input>
+        </form>
+      </div>
+      <br>
+      <div>
+        <form method="get" action="/searchResourceByTime" id="searchTimeForm">
+          Search Resources by availability:
+          <input id="searchTime" name="searchTime" type="time"></input>
+          Select Duration :
+            <select id="endTimeHr" name="endTimeHr"> 
+              {% for num in range(0,13) %}
+                <option value="{{ num }}">{{num}}</option>          
+              {% endfor %}
+            </select>
+            Hour(s)
+            <select id="endTimeMin" name="endTimeMin">
+              {% for num in range(0,60) %}
+                <option value="{{ num }}">{{num}}</option>          
+              {% endfor %}
+            </select>
+            Minute(s)
+          <input type="submit" value="Search" onclick="document.getElementById('searchTimeForm').submit()"></input>
+        </form>
+      </div>
+      <hr>
+
       {% if pageToDisplay == 'yourReservations' %}
         <div class="resourceTable">
           <div class="headrow">
             <div class="resourceCell">Resource Name</div>
-            <div class="resourceCell">Resource Start Time</div>
-            <div class="resourceCell">Resource Duration</div>
+            <div class="resourceCell">Reservation Start Time</div>
+            <div class="resourceCell">Reservation Duration</div>
             <div class="resourceCell">Resource Tags</div>
             <div class="resourceCell">Delete Reservation</div>
           </div>
 
           {% for reservation in reservations %}
-            {% if ownerView == False %}
+            {% if ownerView == '0' %}
               {% if user and user.user_id() == reservation.reservationAuthor.identity %}
-                <div class="resourceRow">
-                  <form method="get" action="/reserveResource" id="{{reservation.resourceName}}form">
+                <div class="resourceRow" id="reservationRow{{reservation.reservedResourceId}}">
+                  <form method="get" action="/reserveResource" id="{{reservation.reservedResourceName}}form">
                     <div class="resourceCell">
                       <input type="hidden" name="resourceId" value={{reservation.reservedResourceId}}>
-                      <a href="#" onclick="document.getElementById('{{reservation.resourceName}}form').submit()">{{ reservation.reservedResourceName }}</a>
+                      <a href="#" onclick="document.getElementById('{{reservation.reservedResourceName}}form').submit()">{{ reservation.reservedResourceName }}</a>
                     </div>
                   </form>
                   <div class="resourceCell">{{ reservation.reservationStartTime }}</div>
@@ -113,12 +208,21 @@
                     </div>
                   </form>
                 </div>
+
+                <script type="text/javascript">
+                  var currentDate = new Date()
+                  var reservationEndTime = new Date("{{reservation.reservationEndTime}}")
+                  if(reservationEndTime < currentDate) {
+                    document.getElementById("reservationRow{{reservation.reservedResourceId}}").style.display ="none"
+                  }
+                </script>
+
               {% endif %}
             {% endif %}
 
-            {% if ownerView == True %}
+            {% if ownerView == '1' %}
               {% if resourceOwner == reservation.reservationAuthor.email %}
-                <div class="resourceRow">
+                <div class="resourceRow" id="reservationRow{{reservation.reservedResourceId}}">
                   <form method="get" action="/reserveResource" id="{{reservation.resourceName}}form">
                     <div class="resourceCell">
                       <input type="hidden" name="resourceId" value={{reservation.reservedResourceId}}>
@@ -157,6 +261,15 @@
                     </form>
                   {% endif %}
                 </div>
+
+                <script type="text/javascript">
+                  var currentDate = new Date()
+                  var reservationEndTime = new Date("{{reservation.reservationEndTime}}")
+                  if(reservationEndTime < currentDate) {
+                    document.getElementById("reservationRow{{reservation.reservedResourceId}}").style.display ="none"
+                  }
+                </script>
+
               {% endif %}
             {% endif %}
           {% endfor %}
@@ -171,11 +284,11 @@
             <div class="resourceCell">Resource End Time</div>
             <div class="resourceCell">Resource Tags</div>
             <div class="resourceCell">Number of Reservations</div>
+            <div class="resourceCell">RSS Link</div>
           </div>
 
           {% for resource in resources %}
-
-            {% if ownerView == False %}
+            {% if ownerView == '0' %}            
               {% if user and user.user_id() == resource.resourceAuthor.identity %}
                 <div class="resourceRow">
                   <form method="get" action="/reserveResource" id="{{resource.resourceName}}form">
@@ -195,11 +308,17 @@
                     {% endfor %}
                   </div>
                   <div class="resourceCell">{{ resource.numberOfReservations }}</div>
+                  <form method="get" action="/seeRSS" id="{{resource.resourceId}}RSSform">
+                    <div class="resourceCell">
+                      <input type="hidden" name="resourceId" value={{resource.resourceId}}>
+                      <a href="#" onclick="document.getElementById('{{resource.resourceId}}RSSform').submit()">RSS</a>
+                    </div>
+                  </form>
                 </div>
               {% endif %}
             {% endif %}
 
-            {% if ownerView == True %}
+            {% if ownerView == '1' %}
               {% if resourceOwner == resource.resourceAuthor.email %}
                 <div class="resourceRow">
                   <form method="get" action="/reserveResource" id="{{resource.resourceName}}form">
@@ -219,6 +338,12 @@
                     {% endfor %}
                   </div>
                   <div class="resourceCell">{{ resource.numberOfReservations }}</div>
+                  <form method="get" action="/seeRSS" id="{{resource.resourceId}}RSSform">
+                    <div class="resourceCell">
+                      <input type="hidden" name="resourceId" value={{resource.resourceId}}>
+                      <a href="#" onclick="document.getElementById('{{resource.resourceId}}RSSform').submit()">RSS</a>
+                    </div>
+                  </form>
                 </div>
               {% endif %}
             {% endif %}
@@ -235,6 +360,7 @@
             <div class="resourceCell">Resource End Time</div>
             <div class="resourceCell">Resource Tags</div>
             <div class="resourceCell">Number of Reservations</div>
+            <div class="resourceCell">RSS Link</div>
           </div>
 
           {% for resource in resources %}
@@ -261,6 +387,12 @@
                 {% endfor %}
               </div>
               <div class="resourceCell">{{ resource.numberOfReservations }}</div>
+              <form method="get" action="/seeRSS" id="{{resource.resourceId}}RSSform">
+                <div class="resourceCell">
+                  <input type="hidden" name="resourceId" value={{resource.resourceId}}>
+                  <a href="#" onclick="document.getElementById('{{resource.resourceId}}RSSform').submit()">RSS</a>
+                </div>
+              </form>
             </div>
           {% endfor %}
         </div>
@@ -269,7 +401,10 @@
       {% if pageToDisplay == 'createResource' %}
         <div>
           <h4>Create a new Resource</h4>
-          <form action="/create" method="post" id="createReservationForm">
+          <br>
+          <div id="createResourceError" class="createResourceError"></div>
+          <br>
+          <form action="/create" method="post" id="createResourceForm" onSubmit="return isValidResource()">
             <div> Resource Name:
               <input id="resourceName" value="{{ resourceName }}" name="resourceName" required></input>
             </div>

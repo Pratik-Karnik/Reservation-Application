@@ -3,12 +3,18 @@ import urllib
 import cgi
 from google.appengine.api import users
 from google.appengine.ext import ndb
+from email import utils
+from google.appengine.api import app_identity
+from google.appengine.api import mail
 import jinja2
 import webapp2
 import uuid
 import time
-from datetime import datetime,time,date,timedelta
+from datetime import datetime,date,timedelta
 from time import sleep
+from xml.etree.ElementTree import Element, SubElement, Comment
+from xml.etree import ElementTree
+from xml.dom import minidom
 
 
 JINJA_ENVIRONMENT = jinja2.Environment(
@@ -16,10 +22,21 @@ JINJA_ENVIRONMENT = jinja2.Environment(
     extensions=['jinja2.ext.autoescape'],
     autoescape=True)
 
+def makePrettyXML(xmlElement):
+    rawXML = ElementTree.tostring(xmlElement, 'utf-8')
+    parsedXML = minidom.parseString(rawXML)
+    return parsedXML.toprettyxml(indent="  ", encoding="UTF-8")
+
+def send_approved_mail(sender_address,user):
+    mail.send_mail(sender=sender_address,
+                   to="<"+user.nickname()+">",
+                   subject="Reservation Done",
+                   body=""" You have successfully made a reservation
+""")
+
 class Author(ndb.Model):
     identity = ndb.StringProperty(indexed=False)
     email = ndb.StringProperty(indexed=False)
-
 
 class Reservation(ndb.Model):
     reservationId = ndb.StringProperty(indexed=True)
@@ -29,6 +46,7 @@ class Reservation(ndb.Model):
     reservationStartTime = ndb.DateTimeProperty(auto_now_add=False)
     reservationEndTime = ndb.DateTimeProperty(auto_now_add=False)
     reservationDuration = ndb.StringProperty(indexed=True)
+    reservationPubDate = ndb.DateTimeProperty(auto_now_add=True)
 
 class Resource(ndb.Model):
     resourceId = ndb.StringProperty(indexed=True)
@@ -39,6 +57,7 @@ class Resource(ndb.Model):
     numberOfReservations = ndb.IntegerProperty(indexed=False)
     resourceDate = ndb.DateTimeProperty(auto_now_add=False)
     resourceTags = ndb.StringProperty(repeated=True)
+    resourcePubDate = ndb.DateTimeProperty(auto_now_add=True)
 
 class MainPage(webapp2.RequestHandler):
     def get(self):
@@ -48,16 +67,15 @@ class MainPage(webapp2.RequestHandler):
         resourceQuery = Resource.query().order(-Resource.resourceDate)
         resources = resourceQuery.fetch()
 
-        reservationQuery = Reservation.query()
+        reservationQuery = Reservation.query().order(Reservation.reservationStartTime)
         reservations = reservationQuery.fetch()
 
         requestedPageToDisplay = self.request.get('pageToDisplay')
         if requestedPageToDisplay != '':
             pageToDisplay = requestedPageToDisplay
 
-
         resourceOwner = ""
-        ownerView = False
+        ownerView = '0'
 
         linkOwnerView = self.request.get('ownerView')
         if linkOwnerView != "":
@@ -66,7 +84,22 @@ class MainPage(webapp2.RequestHandler):
         linkResourceOwner = self.request.get('resourceOwner')
         if linkResourceOwner != "":
             resourceOwner = linkResourceOwner
-            ownerView = True
+            ownerView = '1'
+
+        deletedReservationId = ""
+        linkDeletedReservationId = self.request.get('deleteReservation')
+        if linkDeletedReservationId != "":
+            deletedReservationId = linkDeletedReservationId
+            deleteReservationQuery = Reservation.query(Reservation.reservationId == deletedReservationId)
+            deletedReservation = deleteReservationQuery.fetch()[0]
+            resourceQuery = Resource.query(Resource.resourceId == deletedReservation.reservedResourceId)
+            resource = resourceQuery.fetch()[0]
+            resource.numberOfReservations = resource.numberOfReservations - 1
+            resource.put()
+            deletedReservation.key.delete()
+            sleep(3)
+            query_params = {'pageToDisplay':pageToDisplay}
+            self.redirect('/?' + urllib.urlencode(query_params))
 
         user = users.get_current_user()
         if user:
@@ -92,6 +125,7 @@ class ReserveResource(webapp2.RequestHandler):
     def get(self):
 
         pageToDisplay = "showReservations"
+        validReservation = self.request.get('validReservation')
 
         requestedPageToDisplay = self.request.get('pageToDisplay')
         if requestedPageToDisplay != '':
@@ -101,10 +135,9 @@ class ReserveResource(webapp2.RequestHandler):
 
         resourceQuery = Resource.query(Resource.resourceId == resourceId)
         resources = resourceQuery.fetch()
-        reservationQuery = Reservation.query(Reservation.reservedResourceId == resourceId)
+        reservationQuery = Reservation.query(Reservation.reservedResourceId == resourceId).order(Reservation.reservationStartTime)
         reservations = reservationQuery.fetch()
 
-        print resources
         user = users.get_current_user()
         resourceStartDate = datetime.strftime(resources[0].resourceStartTime,'%m/%d/%Y')
 
@@ -118,7 +151,8 @@ class ReserveResource(webapp2.RequestHandler):
                 'reservations' : reservations,
                 'pageToDisplay' : pageToDisplay,
                 'resource' : resources[0],
-                'resourceStartDate' : resourceStartDate
+                'resourceStartDate' : resourceStartDate,
+                'validReservation' : validReservation
             }
 
             template = JINJA_ENVIRONMENT.get_template('reserveResource.html')
@@ -153,7 +187,7 @@ class showTaggedResources(webapp2.RequestHandler):
 
 class AddReservation(webapp2.RequestHandler):
     def post(self):
-        validReservation = True
+        validReservation = "1"
         resourceName = self.request.get('resourceName')
         resourceId = self.request.get('resourceId')
         resourceFullDate = self.request.get('resourceDate')
@@ -191,23 +225,20 @@ class AddReservation(webapp2.RequestHandler):
         reservationEndTime = reservationStartTime + duration
 
         if resource.resourceStartTime <= reservationStartTime:
-            print "in first"
             if resource.resourceEndTime >= reservationEndTime:
-                print "in second"
                 for reservation in reservations:
                     if reservation.reservationStartTime > reservationStartTime and reservation.reservationStartTime >= reservationEndTime:
-                        validReservation = True
+                        validReservation = "1"
                     elif reservationStartTime >= reservation.reservationEndTime and reservationEndTime > reservation.reservationEndTime:
-                        validReservation = True
+                        validReservation = "1"
                     else:
-                        validReservation = False
+                        validReservation = "0"
             else:
-                validReservation = False
+                validReservation = "0"
         else:
-            validReservation = False
+            validReservation = "0"
 
-
-        if validReservation == True:
+        if validReservation == "1":
             resource.resourceDate = datetime.now()
             resource.numberOfReservations += 1
 
@@ -231,14 +262,177 @@ class AddReservation(webapp2.RequestHandler):
             newReservation.put()
             sleep(3)
 
+            send_approved_mail('{}@appspot.gserviceaccount.com'.format(
+            app_identity.get_application_id()),user)
+
             pageToDisplay = "yourReservations"
             query_params = {'pageToDisplay':pageToDisplay}
             self.redirect('/?' + urllib.urlencode(query_params))
         else:
             pageToDisplay = "addReservation"
-            query_params = {'pageToDisplay':pageToDisplay,'resourceId':resourceId}
+            query_params = {'pageToDisplay':pageToDisplay,'validReservation':validReservation,'resourceId':resourceId}
             self.redirect('/reserveResource?' + urllib.urlencode(query_params))
 
+class seeResourceRSS(webapp2.RequestHandler):
+    def get(self):
+
+        resourceId = self.request.get('resourceId')
+        reservationQuery = Reservation.query(Reservation.reservedResourceId == resourceId)
+        reservations = reservationQuery.fetch()
+        reservationNumber = 1
+
+        user = users.get_current_user()
+        resourceQuery = Resource.query(Resource.resourceId == resourceId)
+        resources = resourceQuery.fetch()
+        resource = resources[0]
+
+        resourceUrl = self.request.url
+        splitResourceUrl = resourceUrl.split("/")
+        reserveResourceLink = ""
+
+        for i in range(0,len(splitResourceUrl)):
+            if i != (len(splitResourceUrl) - 1):
+                reserveResourceLink += splitResourceUrl[i]+"/"
+
+        reserveResourceLink = reserveResourceLink+"/reserveResource?resourceId="+resourceId
+
+        root = Element('rss')
+        root.set('version','2.0')
+
+        channel = SubElement(root, 'channel')
+        title = SubElement(channel, 'title')
+        title.text = resource.resourceName
+        description = SubElement(channel, 'description')
+        description.text = "Owner of this resource is "+ resource.resourceAuthor.email
+        link = SubElement(channel, 'link')
+        link.text = reserveResourceLink
+
+        resourcePubDateTuple = resource.resourcePubDate.timetuple()
+
+        resourcePubDate = time.mktime(resourcePubDateTuple)
+        pubDate = SubElement(channel, 'pubDate')
+        pubDate.text = utils.formatdate(resourcePubDate)
+
+        lastBuildDate = SubElement(channel, 'lastBuildDate')
+
+        if resource.resourceDate is not None:
+            resourceModifiedDateTuple = resource.resourcePubDate.timetuple()
+            resourceModifiedDate = time.mktime(resourceModifiedDateTuple)
+            lastBuildDate.text = utils.formatdate(resourceModifiedDate)
+        else:
+            lastBuildDate.text = utils.formatdate(resourcePubDate)
+
+
+        for reservation in reservations:
+            reservationPubDateTuple = reservation.reservationPubDate.timetuple()
+            reservationPubDate = time.mktime(reservationPubDateTuple)
+
+            item = SubElement(channel, 'item')
+            title = SubElement(item, 'title')
+            title.text = "Reservation #"+str(reservationNumber)
+            description = SubElement(item, 'description')
+            description.text = reservation.reservationAuthor.email+" has made this reservation for duration: "+str(reservation.reservationDuration)+" starting from time: "+str(reservation.reservationStartTime)
+            link = SubElement(item, 'link')
+            link.text = reserveResourceLink
+            guid = SubElement(item, 'guid')
+            guid.set('isPermaLink','false')
+            guid.text = reservation.reservationId
+            pubDate = SubElement(item, 'pubDate')
+            pubDate.text = utils.formatdate(reservationPubDate)
+            reservationNumber+=1
+
+        rssXML = makePrettyXML(root)
+
+
+        if user:
+            url=users.create_logout_url(self.request.uri)
+            url_linktext='Logout'
+            
+            template_values = {
+                'reservations':reservations,
+                'user':user,
+                'rssXML':rssXML,
+            }
+            template = JINJA_ENVIRONMENT.get_template('resourceRSS.html')
+            self.response.write(template.render(template_values))
+
+        else:
+            self.redirect(users.create_login_url(self.request.uri))
+
+class searchResource(webapp2.RequestHandler):
+    def get(self):
+        resourceName = self.request.get('searchName')
+        user = users.get_current_user()
+        resourceQuery = Resource.query(Resource.resourceName == resourceName)
+        resources = resourceQuery.fetch()
+
+        if user:
+            url=users.create_logout_url(self.request.uri)
+            url_linktext='Logout'
+            
+            template_values = {
+                'user': user,
+                'url': url,
+                'url_linktext' : url_linktext,
+                'resources' : resources,
+            }
+            template = JINJA_ENVIRONMENT.get_template('searchResource.html')
+            self.response.write(template.render(template_values))
+        else:
+            self.redirect(users.create_login_url(self.request.uri))
+
+class searchResourceByTime(webapp2.RequestHandler):
+    def get(self):
+        searchTime = self.request.get('searchTime')
+        user = users.get_current_user()
+        resourceQuery = Resource.query()
+        resources = resourceQuery.fetch()
+
+        availableResources = []
+
+        todaysDate = str(time.strftime("%Y-%m-%d"))
+        searchTimeArray = searchTime.split(':')
+        searchTimeHours = int(searchTimeArray[0])
+        searchTimeMinutes = int(searchTimeArray[1])
+
+        if searchTimeHours == 0:
+            searchTimeHours = 12
+
+        if searchTimeHours > 12:
+            searchTimeHours = searchTimeHours-12
+            searchTimeMeridian = 'PM'
+        else:
+            searchTimeMeridian = 'AM'
+
+        searchTime = todaysDate+' '+str(searchTimeHours)+':'+str(searchTimeMinutes)+' '+searchTimeMeridian
+        resourceSearchTime = datetime.strptime(searchTime, '%Y-%m-%d %I:%M %p')
+
+        endTimeHours = self.request.get('endTimeHr')
+        endTimeMinutes = self.request.get('endTimeMin')
+        endTime = datetime.strptime(endTimeHours+':'+endTimeMinutes, '%H:%M')
+        duration = timedelta(hours = endTime.hour, minutes = endTime.minute)
+        resourceEndTime = resourceSearchTime + duration
+
+        for resource in resources:
+            resourceDate = str(resource.resourceDate).split(" ")[0]
+            if resourceDate == str(todaysDate):
+                if resourceSearchTime >= resource.resourceStartTime and resourceEndTime <= resource.resourceEndTime:
+                    availableResources.append(resource)
+
+        if user:
+            url=users.create_logout_url(self.request.uri)
+            url_linktext='Logout'
+            
+            template_values = {
+                'user': user,
+                'url': url,
+                'url_linktext' : url_linktext,
+                'resources' : availableResources,
+            }
+            template = JINJA_ENVIRONMENT.get_template('searchResource.html')
+            self.response.write(template.render(template_values))
+        else:
+            self.redirect(users.create_login_url(self.request.uri))
 
 class CreateResource(webapp2.RequestHandler):
     def post(self):
@@ -297,17 +491,13 @@ class CreateResource(webapp2.RequestHandler):
         tags = self.request.get('resourceTags')
         resourceTags = tags.split(',')
 
-
-
         startTime = resourceDate+' '+str(startTimeHours)+':'+str(startTimeMinutes)+' '+startTimeMeridian
         resourceStartTime = datetime.strptime(startTime, '%Y-%m-%d %I:%M %p')
 
         endTime = resourceDate+' '+str(endTimeHours)+':'+str(endTimeMinutes)+' '+endTimeMeridian
         resourceEndTime = datetime.strptime(endTime, '%Y-%m-%d %I:%M %p')
 
-
         if existingResourceId != "" :
-            print existingResourceId
             resourceQuery = Resource.query(Resource.resourceId == existingResourceId)
             resourceFetched = resourceQuery.fetch()
             resourceFetched[0].resourceName = resourceName
@@ -315,6 +505,15 @@ class CreateResource(webapp2.RequestHandler):
             resourceFetched[0].resourceEndTime = resourceEndTime
             resourceFetched[0].resourceTags = resourceTags
             resourceFetched[0].put()
+
+            reservationQuery = Reservation.query(Reservation.reservedResourceId == existingResourceId)
+            reservations = reservationQuery.fetch()
+            for reservation in reservations:
+                reservation.reservationStartTime = resourceStartTime
+                endTime = datetime.strptime(reservation.reservationDuration, '%H:%M')
+                duration = timedelta(hours = endTime.hour, minutes = endTime.minute)
+                reservation.reservationEndTime = reservation.reservationStartTime + duration
+                reservation.put()
         else:         
             newResource = Resource()
             newResource.resourceName = resourceName
@@ -343,5 +542,8 @@ app = webapp2.WSGIApplication([
     ('/reserveResource', ReserveResource),
     ('/addReservation', AddReservation),
     ('/resourceTags', showTaggedResources),
+    ('/seeRSS', seeResourceRSS),
+    ('/searchResource', searchResource),
+    ('/searchResourceByTime', searchResourceByTime)
 ], debug=True)
 # [END app]

@@ -4,6 +4,116 @@
 	<head>
 		<link type="text/css" rel="stylesheet" href="/stylesheets/reservationApp.css" />
     	<link type="text/css" rel="stylesheet" href="/stylesheets/bootstrap.min.css" />
+    	<script type="text/javascript">
+    		
+		    function isValidResource() {
+		    	var currentDate = new Date();
+
+		    	var resourceYear = document.getElementById("Year").value
+		    	var resourceMonth = document.getElementById("Month").value
+		    	var resourceDay = document.getElementById("Day").value
+		    	var startHours = document.getElementById("StartHours").value
+		    	var startMinutes = document.getElementById("StartMinutes").value
+		    	var startMeridian = document.getElementById("startMeridian").value
+		    	var endHours = document.getElementById("EndHours").value
+		    	var endMinutes = document.getElementById("EndMinutes").value
+		    	var endMeridian = document.getElementById("endMeridian").value
+
+		    	if(startMeridian == 'PM') {
+		      		startHours = parseInt(startHours) + 12
+		      	}
+
+		      	if(startHours.length == 1) {
+		      		startHours = '0'+startHours
+		      	}
+
+		      	if(startMinutes.length == 1) {
+		      		startMinutes = '0'+startMinutes
+		      	}
+
+		      	if(endMeridian == 'PM') {
+		      		endHours = parseInt(endHours) + 12
+		      	}
+
+		      	if(endHours.length == 1) {
+		      		endHours = '0'+endHours
+		      	}
+
+		      	if(endMinutes.length == 1) {
+		      		endMinutes = '0'+endMinutes
+		      	}
+
+		      	var startTime = resourceYear+"-"+resourceMonth+"-"+resourceDay+" "+startHours+":"+startMinutes+":00"
+		      	var resourceStartTime = new Date(startTime)
+
+		      	var endTime = resourceYear+"-"+resourceMonth+"-"+resourceDay+" "+endHours+":"+endMinutes+":00"
+		      	var resourceEndTime = new Date(endTime)
+
+		      	if(resourceStartTime < currentDate) {
+		        	var error = "Resource Start Date cannot be prior to Current Date"
+		        	document.getElementById("editResourceError").innerHTML = error
+		        	return false
+		      	}
+		      	else {
+		        	if(resourceEndTime < resourceStartTime) {
+		          		var error = "Resource End Time should be after Resource Start Time"
+		          		document.getElementById("editResourceError").innerHTML = error
+		          		return false
+		        	}
+		        	else {
+		          		return true
+		        	}
+		      	}
+
+    		}
+
+    		function isValidReservation() {
+    			var currentDate = new Date();
+    			var startTime = document.getElementById("reservationStartTime").value
+    			var startTimeArray = startTime.split(':')
+			    var startTimeHours = parseInt(startTimeArray[0])
+			    var startTimeMinutes = parseInt(startTimeArray[1])
+			    var endTimeHours = parseInt(document.getElementById("endTimeHr").value)
+			    var endTimeMinutes = parseInt(document.getElementById("endTimeMin").value)
+
+			    var resourceAvailableDate = "{{resourceStartDate}}"
+			    var resourceAvailableDateSplitted = resourceAvailableDate.split("/")
+
+			    var reservationStartDate = resourceAvailableDateSplitted[2]+"-"+resourceAvailableDateSplitted[1]+"-"+resourceAvailableDateSplitted[0]
+
+			    var reservationTime = reservationStartDate+" "+startTimeHours+":"+startTimeMinutes+":00"
+			    var reservationStartTime = new Date(reservationTime)
+
+			    if(reservationStartTime < currentDate) {
+			    	var error = "Start Time of the reservation cannot be prior to current time"
+			    	document.getElementById("createReservationError").innerHTML = error
+			    	return false
+			    }
+
+			    var resourceAvailableStart = new Date("{{resource.resourceStartTime}}")
+			    var resourceAvailableEnd = new Date("{{resource.resourceEndTime}}")
+			    
+			    var reservationEndTime = reservationStartTime
+			    reservationEndTime.setHours(reservationEndTime.getHours()+endTimeHours,reservationEndTime.getMinutes()+endTimeMinutes)
+
+			    if(reservationStartTime >= resourceAvailableStart && reservationEndTime <= resourceAvailableEnd) {
+			    	var isValidReserve = "1"
+			    }
+
+			    if(isValidReserve == "1") {
+			    	document.getElementById("invalidReservation").style.display ="none"
+			    }
+
+			    if(endTimeHours == 0 && endTimeMinutes == 0) {
+			    	var error = "Duration of the reservation should be greater than 0"
+			    	document.getElementById("createReservationError").innerHTML = error
+			    	return false
+			    }
+
+			    return true
+    		}
+
+    	</script>
 	</head>
 	<body>
 		<div class = "container">
@@ -39,6 +149,28 @@
 		    </ul>
 		    <hr>
 
+		    <div> Resource Name: {{resource.resourceName}}</div><br>
+		    <div> Number of Reservations: {{resource.numberOfReservations}}</div><br>
+		    <div class="resource-tags"> Resource Tags: </div>
+		    <div>
+	            {% for tag in resource.resourceTags %}
+	              <form id="{{tag}}form" action="/resourceTags" method="get" class="resource-tag-header">
+	                  <input type="hidden" name="resourceTag" value="{{tag}}">
+	                  <a href="#" onclick="document.getElementById('{{tag}}form').submit()">{{tag}}</a>
+	              </form>
+	            {% endfor %}
+	        </div>
+            <br>
+            <br>
+            <div class="resource-tags"> Resource RSS: </div>
+            	<div>
+		            <form method="get" action="/seeRSS" id="{{resource.resourceId}}RSSform" class="resource-tag-header">
+	                  <input type="hidden" name="resourceId" value={{resource.resourceId}}>
+	                  <a href="#" onclick="document.getElementById('{{resource.resourceId}}RSSform').submit()">RSS</a>
+					</form>
+				</div>
+            <hr>
+
 		    {% if pageToDisplay == 'showReservations' %}
 		    	<div class="resourceTable">
 		    		<div class="headrow">
@@ -50,25 +182,34 @@
 
           			{% for reservation in reservations %}
           				{% if reservation.reservedResourceId == resource.resourceId %}
-          					<div class="resourceCell">{{ reservation.reservationAuthor.email }}</div>
-          					<div class="resourceCell">{{ reservation.reservationStartTime }}</div>
-          					<div class="resourceCell">{{ reservation.reservationDuration }}</div>
+          					<div class="resourceRow" id="reservationRow{{reservation.reservedResourceId}}">
+	          					<div class="resourceCell">{{ reservation.reservationAuthor.email }}</div>
+	          					<div class="resourceCell">{{ reservation.reservationStartTime }}</div>
+	          					<div class="resourceCell">{{ reservation.reservationDuration }}</div>
 
-          					{% if reservation.reservationAuthor.identity == user.user_id() %}
-          						<form method="get" action="/">
-          							<div class="resourceCell">
-          								<input type="hidden" name="deleteReservation" value="{{reservation.reservationId}}">
-          								<input type="submit" value ="Delete" class="submit-button"></input>
-          							</div>
-          						</form>
-          					{% endif %}
-          					{% if reservation.reservationAuthor.identity != user.user_id() %}
-          						<form method="get" action="/">
-          							<div class="resourceCell">
-          								Not Authorized to Delete
-          							</div>
-          						</form>
-          					{% endif %}
+	          					{% if reservation.reservationAuthor.identity == user.user_id() %}
+	          						<form method="get" action="/">
+	          							<div class="resourceCell">
+	          								<input type="hidden" name="deleteReservation" value="{{reservation.reservationId}}">
+	          								<input type="submit" value ="Delete" class="submit-button"></input>
+	          							</div>
+	          						</form>
+	          					{% endif %}
+	          					{% if reservation.reservationAuthor.identity != user.user_id() %}
+	          						<form method="get" action="/">
+	          							<div class="resourceCell">
+	          								Not Authorized to Delete
+	          							</div>
+	          						</form>
+	          					{% endif %}
+	          				</div>
+	          				<script type="text/javascript">
+	          					var currentDate = new Date()
+	          					var reservationEndTime = new Date("{{reservation.reservationEndTime}}")
+	          					if(reservationEndTime < currentDate) {
+	          						document.getElementById("reservationRow{{reservation.reservedResourceId}}").style.display ="none"
+	          					}
+	          				</script>
           				{% endif %}
           			{% endfor %}
 		    	</div>
@@ -77,11 +218,35 @@
 		    {% if pageToDisplay == 'addReservation' %}
 		    	<div>
 		    		<h4>You are about to reserve the following resource</h4><br>
+		    		{% if validReservation == "0" %}
+		    			<div class="createResourceError" id="invalidReservation"> You are trying to reserve resource when its not available</div>
+		    		{% endif %}
+		    		<div id="createReservationError" class="createResourceError"></div><br>
 		    		<div>Resource Name: {{resource.resourceName}}</div><br>
 		    		<div>Resource Start Time: {{resource.resourceStartTime}}</div><br>
 		    		<div>Resource End Time: {{resource.resourceEndTime}}</div><br>
 		    		<div>Resource is available from: {{resourceStartDate}}</div><br>
-		    		<form method="post" action="/addReservation" id="addReservationForm">
+		    		{% if resource.numberOfReservations != 0 %}
+		    			<div>Below are the reservations already present on this resource</div><br>
+		    			<div id="presentReservations"></div>
+		    		{% endif %}
+		    		<script type="text/javascript">
+		    			var currentDate = new Date()
+		    			var reservationNumber = 1
+		    			var reservationPresent = ""
+		    			{% for reservation in reservations %}
+		    				var endTime = new Date("{{reservation.reservationEndTime}}")
+		    				var startTime = new Date("{{reservation.reservationStartTime}}")
+
+		    				if(endTime > currentDate) {
+		    					reservationPresent = reservationPresent+"Reservation #"+reservationNumber+" is there on the resource from "+startTime+" "+endTime+"<br>"
+		    				}
+		    				reservationNumber = reservationNumber + 1
+		    			{% endfor %}
+		    			document.getElementById("presentReservations").innerHTML = reservationPresent
+		    		</script>
+
+		    		<form method="post" action="/addReservation" id="addReservationForm" onSubmit=" return isValidReservation()">
 		    			<input type="hidden" name="resourceDate" value="{{resourceStartDate}}"></input>
 		    			<input type="hidden" name="resourceId" value="{{resource.resourceId}}"></input>
 		    			<input type="hidden" name="resourceName" value="{{resource.resourceName}}"></input>
@@ -112,7 +277,10 @@
 		    {% if pageToDisplay == 'editResource' %}
 		    	<div>
 		    		<h4> Edit the resource</h4>
-		    		 <form action="/create" method="post" id="editResourceForm">
+		    		<br>
+		    		<div id="editResourceError" class="createResourceError"></div>
+		    		<br>
+		    		 <form action="/create" method="post" id="editResourceForm" onSubmit=" return isValidResource()">
 		    			<input type="hidden" name="resourceId" value="{{resource.resourceId}}"></input>
 		    			<div> Resource Name :
 		    				<input name="resourceName" value="{{resource.resourceName}}" required></input>
@@ -193,7 +361,7 @@
 			            		startMeridian = 'PM'
 			            	}
 			            	else {
-			            		startMeridian = 'PM'
+			            		startMeridian = 'AM'
 			            	}
 
 			            	document.getElementById("startMeridian").value = startMeridian;
@@ -211,7 +379,7 @@
 			            		endMeridian = 'PM'
 			            	}
 			            	else {
-			            		endMeridian = 'PM'
+			            		endMeridian = 'AM'
 			            	}
 
 			            	document.getElementById("endMeridian").value = endMeridian;

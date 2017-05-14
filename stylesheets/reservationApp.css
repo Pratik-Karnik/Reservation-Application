@@ -62,13 +62,14 @@ body {
 	float: left;
     margin-left: 10%;
 }
-.tag-style {
+.resource-tag-header {
+    float: left;
+    margin-left: 5%;
+}
+.resource-tags {
 	float:left;
 }
-.rss-style {
-	float:left;
-	margin-right:8%;
-}
-.rss-substyle {
-	float:left;
+
+.createResourceError {
+    color:red;
 }
